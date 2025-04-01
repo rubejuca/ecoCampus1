@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ejemplo1/components/my_textfield.dart';
 import 'package:ejemplo1/components/my_button.dart';
 import 'package:ejemplo1/components/squire_tile.dart';
+import 'package:ejemplo1/pages/Menu_page.dart';
 
 class LoginPage extends StatelessWidget {
   LoginPage({super.key});
@@ -11,7 +12,12 @@ class LoginPage extends StatelessWidget {
   final passwordController = TextEditingController();
 
   // sign user in method
-  void signUserIn() {}
+  void signUserIn(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const Menu_Page()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +79,11 @@ class LoginPage extends StatelessWidget {
                 const SizedBox(height: 25),
 
                 // sign in button
-                MyButton(onTap: signUserIn),
+                MyButton(
+                  onTap: () {
+                    signUserIn(context);
+                  },
+                ),
 
                 const SizedBox(height: 50),
 
