@@ -2,91 +2,132 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
-class Camera_page extends StatefulWidget {
+class CameraPage extends StatefulWidget {
   @override
   State<StatefulWidget> createState() {
     return _Hardware();
   }
 }
 
-class _Hardware extends State<Camera_page> {
+class _Hardware extends State<CameraPage> {
   final ImagePicker _picker = ImagePicker();
-
-  DecorationImage defaultImage = DecorationImage(
-    fit: BoxFit.cover,
-    image: NetworkImage(
-      "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
-    ),
-  );
-
-  TextEditingController latitude = TextEditingController();
-  TextEditingController longitude = TextEditingController();
+  File? _imageFile;
+  Position? _currentPosition;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text("Acceso a Cámara y GPS"),
-        backgroundColor: Colors.teal, // Cambié el color de la AppBar
+        backgroundColor: Colors.teal,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0), // Añadí un padding general
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Botones para cámara y galería con un estilo moderno
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildCameraGalleryButton("Cámara", ImageSource.camera),
-                SizedBox(width: 20),
-                _buildCameraGalleryButton("Galería", ImageSource.gallery),
-              ],
-            ),
-            SizedBox(height: 20),
-
-            // Contenedor de imagen con borde redondeado y sombra
-            Container(
-              width: MediaQuery.of(context).size.width * 0.8,
-              height: MediaQuery.of(context).size.height * 0.4,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    spreadRadius: 2,
-                    blurRadius: 8,
-                    offset: Offset(0, 4), // Cambié la posición de la sombra
-                  ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildCameraGalleryButton("Cámara", ImageSource.camera),
+                  SizedBox(width: 20),
+                  _buildCameraGalleryButton("Galería", ImageSource.gallery),
                 ],
-                image: defaultImage,
               ),
-            ),
-            SizedBox(height: 20),
+              SizedBox(height: 20),
 
-            // Campos de texto para mostrar latitud y longitud
-            _buildTextField(latitude, "Latitud"),
-            SizedBox(height: 10),
-            _buildTextField(longitude, "Longitud"),
-          ],
+              if (_imageFile != null)
+                Container(
+                  width: MediaQuery.of(context).size.width * 0.8,
+                  height: MediaQuery.of(context).size.height * 0.4,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        spreadRadius: 2,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                    image: DecorationImage(
+                      image: FileImage(_imageFile!),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              SizedBox(height: 20),
+
+              if (_currentPosition != null)
+                Container(
+                  width: MediaQuery.of(context).size.width * 0.8,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        spreadRadius: 2,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: FlutterMap(
+                      options: MapOptions(
+                        center: LatLng(
+                          _currentPosition!.latitude,
+                          _currentPosition!.longitude,
+                        ),
+                        zoom: 15,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                          subdomains: ['a', 'b', 'c'],
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              width: 40,
+                              height: 40,
+                              point: LatLng(
+                                _currentPosition!.latitude,
+                                _currentPosition!.longitude,
+                              ),
+                              child: Icon(
+                                Icons.location_pin,
+                                color: Colors.red,
+                                size: 40,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Función para crear los botones de la cámara y galería con diseño personalizado
   Widget _buildCameraGalleryButton(String text, ImageSource source) {
     return ElevatedButton(
-      onPressed: () {
-        getImage(source);
-      },
+      onPressed: () => getImage(source),
       style: ElevatedButton.styleFrom(
         foregroundColor: Colors.white,
-        backgroundColor: Colors.teal, // Color del texto del botón
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12), // Bordes redondeados
-        ),
+        backgroundColor: Colors.teal,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: EdgeInsets.symmetric(horizontal: 30, vertical: 12),
       ),
       child: Row(
@@ -107,32 +148,7 @@ class _Hardware extends State<Camera_page> {
     );
   }
 
-  // Función para crear los campos de texto para latitud y longitud
-  Widget _buildTextField(TextEditingController controller, String label) {
-    return TextField(
-      readOnly: true,
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(
-          fontSize: 16,
-          color: const Color.fromARGB(255, 98, 147, 142),
-        ),
-        contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.teal, width: 2),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.teal, width: 2),
-        ),
-      ),
-    );
-  }
-
-  // Función para obtener la imagen y la ubicación
-  void getImage(ImageSource source) async {
+  Future<void> getImage(ImageSource source) async {
     XFile? image = await _picker.pickImage(source: source);
     if (image != null) {
       File localImage = File(image.path);
@@ -142,23 +158,55 @@ class _Hardware extends State<Camera_page> {
       if (locationIsActive) {
         LocationPermission permissions = await Geolocator.checkPermission();
 
-        if (permissions == LocationPermission.unableToDetermine ||
-            permissions == LocationPermission.denied ||
+        if (permissions == LocationPermission.denied ||
             permissions == LocationPermission.deniedForever) {
           permissions = await Geolocator.requestPermission();
         }
+
         if (permissions == LocationPermission.always ||
             permissions == LocationPermission.whileInUse) {
-          Position position = await Geolocator.getCurrentPosition();
+          try {
+            await Future.delayed(Duration(seconds: 2));
 
-          latitude.text = position.latitude.toString();
-          longitude.text = position.longitude.toString();
+            Position position = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.high,
+            );
+
+            debugPrint(
+              "Ubicación obtenida: ${position.latitude}, ${position.longitude}",
+            );
+
+            setState(() {
+              _imageFile = localImage;
+              _currentPosition = position;
+            });
+          } catch (e) {
+            debugPrint("Error al obtener ubicación: $e");
+
+            Position? lastKnown = await Geolocator.getLastKnownPosition();
+
+            if (lastKnown != null) {
+              debugPrint(
+                "Usando última ubicación conocida: ${lastKnown.latitude}, ${lastKnown.longitude}",
+              );
+
+              setState(() {
+                _imageFile = localImage;
+                _currentPosition = lastKnown;
+              });
+            } else {
+              setState(() {
+                _imageFile = localImage;
+                _currentPosition = null;
+              });
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("No se pudo obtener la ubicación.")),
+              );
+            }
+          }
         }
       }
-
-      setState(() {
-        this.defaultImage = DecorationImage(image: FileImage(localImage));
-      });
     }
   }
 }
